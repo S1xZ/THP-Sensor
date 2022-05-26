@@ -61,6 +61,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 		sprintf(buffer1,"pm2.5 %d\r\n",buffer[0]);
 		HAL_UART_Transmit(&huart2, &buffer1, sizeof(buffer1), HAL_MAX_DELAY);
+		if(buffer[0] >= 0 && buffer[0] < 50) state = 1;
+		if(buffer[0] >= 50 && buffer[0] < 150) state = 2;
+		if(buffer[0] > 150) state = 3;
 		HAL_UART_Receive_IT(&huart1, &buffer, sizeof(buffer));
 	}
 }
@@ -103,13 +106,34 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart1, &buffer, sizeof(buffer));
-
+  state = 4;
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  switch (state) {
+	  	    case 1:
+	  		      HAL_GPIO_WritePin(LD_Green_GPIO_Port, LD_Green_Pin, GPIO_PIN_SET);
+	  		      HAL_GPIO_WritePin(LD_Yellow_GPIO_Port, LD_Yellow_Pin, GPIO_PIN_RESET);
+	  		      HAL_GPIO_WritePin(LD_Red_GPIO_Port, LD_Red_Pin, GPIO_PIN_RESET);
+	  	      break;
+	  	    case 2:
+	  		      HAL_GPIO_WritePin(LD_Green_GPIO_Port, LD_Green_Pin, GPIO_PIN_RESET);
+	  		      HAL_GPIO_WritePin(LD_Yellow_GPIO_Port, LD_Yellow_Pin, GPIO_PIN_SET);
+	  		      HAL_GPIO_WritePin(LD_Red_GPIO_Port, LD_Red_Pin, GPIO_PIN_RESET);
+	  	      break;
+	  	    case 3:
+	  		      HAL_GPIO_WritePin(LD_Green_GPIO_Port, LD_Green_Pin, GPIO_PIN_RESET);
+	  		      HAL_GPIO_WritePin(LD_Yellow_GPIO_Port, LD_Yellow_Pin, GPIO_PIN_RESET);
+	  		      HAL_GPIO_WritePin(LD_Red_GPIO_Port, LD_Red_Pin, GPIO_PIN_SET);
+	  	      break;
+	  	    default:
+	  		      HAL_GPIO_WritePin(LD_Green_GPIO_Port, LD_Green_Pin, GPIO_PIN_SET);
+	  		      HAL_GPIO_WritePin(LD_Yellow_GPIO_Port, LD_Yellow_Pin, GPIO_PIN_SET);
+	  		      HAL_GPIO_WritePin(LD_Red_GPIO_Port, LD_Red_Pin, GPIO_PIN_SET);
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -138,9 +162,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 16;
-  RCC_OscInitStruct.PLL.PLLN = 336;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 80;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -243,7 +267,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, LD2_Pin|LD_Green_Pin|LD_Yellow_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LD_Red_GPIO_Port, LD_Red_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -251,12 +278,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin LD_Green_Pin LD_Yellow_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin|LD_Green_Pin|LD_Yellow_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD_Red_Pin */
+  GPIO_InitStruct.Pin = LD_Red_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD_Red_GPIO_Port, &GPIO_InitStruct);
 
 }
 

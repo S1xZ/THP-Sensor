@@ -3,6 +3,14 @@
 #include <PMserial.h>
 #include <SoftwareSerial.h>
 #include <ESP8266WiFi.h>
+#include <FirebaseESP8266.h>
+#include <addons/TokenHelper.h>
+#include <addons/RTDBHelper.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+
+//UTC OFFSET
+#define UTC_OFFSET 25200
 
 //DHT DEF
 #define DHTPIN 2
@@ -10,10 +18,18 @@
 DHT dht(DHTPIN, DHTTYPE);
 
 //FIREBASE WIFI DEF
-#define FIREBASE_HOST "https://esp8266-thpsensor-default-rtdb.asia-southeast1.firebasedatabase.app/"
-#define FIREBASE_AUTH "ezKzdUZEgykVkbpXbWWzFk9xwbKaWVG3YMkYvAe3"
 #define WIFI_SSID "PROJ"
 #define WIFI_PASSWORD "test1234"
+#define API_KEY "AIzaSyAmhyLiWn4nLHv0BxCtb5NldybASBgIceQ"
+#define DATABASE_URL "https://esp8266-thpsensor-default-rtdb.asia-southeast1.firebasedatabase.app/" //<databaseName>.firebaseio.com or <databaseName>.<region>.firebasedatabase.app
+#define USER_EMAIL "mariomater2001@gmail.com"
+#define USER_PASSWORD "test1234"
+
+// Define Firebase Data object
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+unsigned long sendDataPrevMillis = 0;
 
 //SOFTWARE SERIAL
 SoftwareSerial StmSerial(13,15); //RX, TX
@@ -24,10 +40,57 @@ constexpr auto PMS_RX = 5;
 constexpr auto PMS_TX = 4;
 SerialPM pms(PMS3003, PMS_RX, PMS_TX);
 
+// Define NTP Client to get time
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", UTC_OFFSET);
+
 void setup() {
   Serial.begin(9600);
   StmSerial.begin(9600);
   
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to Wi-Fi");
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(300);
+  }
+  Serial.println();
+  Serial.print("Connected with IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.println();
+
+  /* Assign the api key (required) */
+  config.api_key = API_KEY;
+
+  /* Assign the user sign in credentials */
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
+
+  /* Assign the RTDB URL (required) */
+  config.database_url = DATABASE_URL;
+
+  /* Assign the callback function for the long running token generation task */
+  config.token_status_callback = tokenStatusCallback; // see addons/TokenHelper.h
+
+  // Or use legacy authenticate method
+  // config.database_url = DATABASE_URL;
+  // config.signer.tokens.legacy_token = "<database secret>";
+
+  // To connect without auth in Test Mode, see Authentications/TestMode/TestMode.ino
+
+  //////////////////////////////////////////////////////////////////////////////////////////////
+  // Please make sure the device free Heap is not lower than 80 k for ESP32 and 10 k for ESP8266,
+  // otherwise the SSL connection will fail.
+  //////////////////////////////////////////////////////////////////////////////////////////////
+
+  Firebase.begin(&config, &auth);
+
+  // Comment or pass false value when WiFi reconnection will control by your code or third party library
+  Firebase.reconnectWiFi(true);
+
+  Firebase.setDoubleDigits(5);
+  timeClient.begin();
   dht.begin();
   pms.init();
 }
@@ -36,6 +99,31 @@ void loop() {
   // Wait a few seconds between measurements.
   delay(2000);
 
+  timeClient.update();
+  String hr, mn, sc;
+  if (timeClient.getHours() < 10) {
+      hr = "0" + String(timeClient.getHours());
+    }
+  else {
+      hr = String(timeClient.getHours());
+    }
+    
+  if (timeClient.getMinutes() < 10) {
+      mn = "0" + String(timeClient.getMinutes());
+    }
+  else {
+      mn = String(timeClient.getMinutes());
+    }
+  
+  if (timeClient.getSeconds() < 10) {
+      sc = "0" + String(timeClient.getSeconds());
+    }
+  else {
+      sc = String(timeClient.getSeconds());
+    }
+    
+  String TimeNow = hr + ":" + mn + ":" + sc;
+  
   //Read pms value
   pms.read();
 
@@ -61,5 +149,24 @@ void loop() {
   //Send data through StmSerial
   buffer[0] = pms.pm25;
   StmSerial.write(buffer, sizeof(buffer));
+
+  String PATH;
+  
+  if (Firebase.ready() && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0))
+  {
+    sendDataPrevMillis = millis();
+    PATH = TimeNow + "/" + "Humidity";
+    Firebase.setFloat(fbdo, PATH,h);
+    PATH = TimeNow + "/" + "TemperatureToCelsius";
+    Firebase.setFloat(fbdo, PATH,t);
+    PATH = TimeNow + "/" + "TemperatureToFahrenheit";
+    Firebase.setFloat(fbdo, PATH,f);
+    PATH = TimeNow + "/" + "PM01";
+    Firebase.setInt(fbdo, PATH,pms.pm01);
+    PATH = TimeNow + "/" + "PM25";
+    Firebase.setInt(fbdo, PATH,pms.pm25);
+    PATH = TimeNow + "/" + "PM10";
+    Firebase.setInt(fbdo, PATH,pms.pm10);
+  }
 
 }
