@@ -8,6 +8,7 @@
 #include <addons/RTDBHelper.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include <time.h>
 
 //UTC OFFSET
 #define UTC_OFFSET 25200
@@ -100,7 +101,18 @@ void loop() {
   delay(2000);
 
   timeClient.update();
+
+  unsigned long epochTime = timeClient.getEpochTime();
+  
   String hr, mn, sc;
+  time_t cur_t = epochTime;
+  tm *ptm = gmtime(&cur_t); 
+ 
+  int monthDay = ptm->tm_mday;
+  int currentMonth = ptm->tm_mon+1;
+  int currentYear = ptm->tm_year+1900;
+  String currentDate = String(currentYear) + "-" +  String(currentMonth) + "-" + String(monthDay);
+  
   if (timeClient.getHours() < 10) {
       hr = "0" + String(timeClient.getHours());
     }
@@ -122,7 +134,7 @@ void loop() {
       sc = String(timeClient.getSeconds());
     }
     
-  String TimeNow = hr + ":" + mn + ":" + sc;
+  String TimeNow = currentDate + " " + hr + ":" + mn + ":" + sc;
   
   //Read pms value
   pms.read();
@@ -155,18 +167,20 @@ void loop() {
   if (Firebase.ready() && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0))
   {
     sendDataPrevMillis = millis();
-    PATH = TimeNow + "/" + "Humidity";
+    PATH = "UserData/" + TimeNow + "/" + "Humidity";
     Firebase.setFloat(fbdo, PATH,h);
-    PATH = TimeNow + "/" + "TemperatureToCelsius";
+    PATH = "UserData/" + TimeNow + "/" + "TemperatureToCelsius";
     Firebase.setFloat(fbdo, PATH,t);
-    PATH = TimeNow + "/" + "TemperatureToFahrenheit";
+    PATH = "UserData/" + TimeNow + "/" + "TemperatureToFahrenheit";
     Firebase.setFloat(fbdo, PATH,f);
-    PATH = TimeNow + "/" + "PM01";
+    PATH = "UserData/" + TimeNow + "/" + "PM01";
     Firebase.setInt(fbdo, PATH,pms.pm01);
-    PATH = TimeNow + "/" + "PM25";
+    PATH = "UserData/" + TimeNow + "/" + "PM25";
     Firebase.setInt(fbdo, PATH,pms.pm25);
-    PATH = TimeNow + "/" + "PM10";
+    PATH = "UserData/" + TimeNow + "/" + "PM10";
     Firebase.setInt(fbdo, PATH,pms.pm10);
+    PATH = "UserData/" + TimeNow + "/" + "TimeStamp";
+    Firebase.setString(fbdo, PATH,TimeNow);
   }
 
 }
