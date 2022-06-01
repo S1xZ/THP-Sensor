@@ -103,38 +103,8 @@ void loop() {
   timeClient.update();
 
   unsigned long epochTime = timeClient.getEpochTime();
-  
-  String hr, mn, sc;
-  time_t cur_t = epochTime;
-  tm *ptm = gmtime(&cur_t); 
- 
-  int monthDay = ptm->tm_mday;
-  int currentMonth = ptm->tm_mon+1;
-  int currentYear = ptm->tm_year+1900;
-  String currentDate = String(currentYear) + "-" +  String(currentMonth) + "-" + String(monthDay);
-  
-  if (timeClient.getHours() < 10) {
-      hr = "0" + String(timeClient.getHours());
-    }
-  else {
-      hr = String(timeClient.getHours());
-    }
-    
-  if (timeClient.getMinutes() < 10) {
-      mn = "0" + String(timeClient.getMinutes());
-    }
-  else {
-      mn = String(timeClient.getMinutes());
-    }
-  
-  if (timeClient.getSeconds() < 10) {
-      sc = "0" + String(timeClient.getSeconds());
-    }
-  else {
-      sc = String(timeClient.getSeconds());
-    }
-    
-  String TimeNow = currentDate + " " + hr + ":" + mn + ":" + sc;
+
+  String TimeNow = String(epochTime);
   
   //Read pms value
   pms.read();
@@ -164,22 +134,22 @@ void loop() {
 
   String PATH;
   
-  if (Firebase.ready() && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0))
+  if (Firebase.ready() && (millis() - sendDataPrevMillis > 15000 || sendDataPrevMillis == 0) && epochTime > 1641038400)
   {
     sendDataPrevMillis = millis();
-    PATH = "UserData/" + TimeNow + "/" + "Humidity";
+    PATH = "UserData/readings/" + TimeNow + "/" + "Humidity";
     Firebase.setFloat(fbdo, PATH,h);
-    PATH = "UserData/" + TimeNow + "/" + "TemperatureToCelsius";
+    PATH = "UserData/readings/" + TimeNow + "/" + "TemperatureToCelsius";
     Firebase.setFloat(fbdo, PATH,t);
-    PATH = "UserData/" + TimeNow + "/" + "TemperatureToFahrenheit";
+    PATH = "UserData/readings/" + TimeNow + "/" + "TemperatureToFahrenheit";
     Firebase.setFloat(fbdo, PATH,f);
-    PATH = "UserData/" + TimeNow + "/" + "PM01";
+    PATH = "UserData/readings/" + TimeNow + "/" + "PM01";
     Firebase.setInt(fbdo, PATH,pms.pm01);
-    PATH = "UserData/" + TimeNow + "/" + "PM25";
+    PATH = "UserData/readings/" + TimeNow + "/" + "PM25";
     Firebase.setInt(fbdo, PATH,pms.pm25);
-    PATH = "UserData/" + TimeNow + "/" + "PM10";
+    PATH = "UserData/readings/" + TimeNow + "/" + "PM10";
     Firebase.setInt(fbdo, PATH,pms.pm10);
-    PATH = "UserData/" + TimeNow + "/" + "TimeStamp";
+    PATH = "UserData/readings/" + TimeNow + "/" + "TimeStamp";
     Firebase.setString(fbdo, PATH,TimeNow);
   }
 
